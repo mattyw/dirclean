@@ -32,13 +32,13 @@ func (s *Summary) AddFile(path string, info os.FileInfo) {
 
 type ByQuantity []Summary
 
-func (a ByQuantity) Len() int           { return a.Quantity }
+func (a ByQuantity) Len() int           { return len(a) }
 func (a ByQuantity) Swap(i, j int)      { a[i], a[j] = a[j], a[i] }
 func (a ByQuantity) Less(i, j int) bool { return a[i].Quantity < a[j].Quantity }
 
 type BySize []Summary
 
-func (a BySize) Len() int           { return a.Size }
+func (a BySize) Len() int           { return len(a) }
 func (a BySize) Swap(i, j int)      { a[i], a[j] = a[j], a[i] }
 func (a BySize) Less(i, j int) bool { return a[i].Size < a[j].Size }
 
@@ -54,9 +54,16 @@ func (n *Names) Do(path string, info os.FileInfo, err error) error {
 }
 
 func (n *Names) Summary() {
-	for k, v := range n.names {
-		if v.Quantity > 1 {
-			fmt.Printf("%s: %v\n", k, v)
+	summary := make([]Summary, len(n.names))
+	i := 0
+	for _, v := range n.names {
+		summary[i] = *v
+		i++
+	}
+	sort.Sort(BySize(summary))
+	for _, s := range summary {
+		if s.Quantity > 1 {
+			fmt.Println(s)
 		}
 	}
 }
@@ -86,9 +93,16 @@ func (n *MDSum) Do(path string, info os.FileInfo, err error) error {
 }
 
 func (n *MDSum) Summary() {
-	for k, v := range n.names {
-		if v.Quantity > 1 {
-			fmt.Printf("%s: %v\n", k, v)
+	summary := make([]Summary, len(n.names))
+	i := 0
+	for _, v := range n.names {
+		summary[i] = *v
+		i++
+	}
+	sort.Sort(BySize(summary))
+	for _, s := range summary {
+		if s.Quantity > 1 {
+			fmt.Println(s)
 		}
 	}
 }
