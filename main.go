@@ -7,37 +7,62 @@ import (
 	"io/ioutil"
 	"os"
 	"path/filepath"
+	"sort"
 )
 
 type Names struct {
-	names map[string][]string
+	names map[string]*Summary
 }
 
 type Summary struct {
-	Key      string
 	Quantity int
 	Paths    []string
 	Size     int64
 }
 
+func (s *Summary) String() string {
+	return fmt.Sprintf("%v %v %v", s.Quantity, s.Size, s.Paths)
+}
+
+func (s *Summary) AddFile(path string, info os.FileInfo) {
+	s.Quantity += 1
+	s.Paths = append(s.Paths, path)
+	s.Size += info.Size()
+}
+
+type ByQuantity []Summary
+
+func (a ByQuantity) Len() int           { return a.Quantity }
+func (a ByQuantity) Swap(i, j int)      { a[i], a[j] = a[j], a[i] }
+func (a ByQuantity) Less(i, j int) bool { return a[i].Quantity < a[j].Quantity }
+
+type BySize []Summary
+
+func (a BySize) Len() int           { return a.Size }
+func (a BySize) Swap(i, j int)      { a[i], a[j] = a[j], a[i] }
+func (a BySize) Less(i, j int) bool { return a[i].Size < a[j].Size }
+
 func (n *Names) Do(path string, info os.FileInfo, err error) error {
 	if info.IsDir() {
 		return nil
 	}
-	n.names[info.Name()] = append(n.names[info.Name()], path)
+	if n.names[info.Name()] == nil {
+		n.names[info.Name()] = &Summary{}
+	}
+	n.names[info.Name()].AddFile(path, info)
 	return nil
 }
 
 func (n *Names) Summary() {
 	for k, v := range n.names {
-		if len(v) > 1 {
-			fmt.Printf("%s: %v %v\n\n", k, len(v), v)
+		if v.Quantity > 1 {
+			fmt.Printf("%s: %v\n", k, v)
 		}
 	}
 }
 
 type MDSum struct {
-	names map[string][]string
+	names map[string]*Summary
 }
 
 func (n *MDSum) Do(path string, info os.FileInfo, err error) error {
@@ -49,8 +74,11 @@ func (n *MDSum) Do(path string, info os.FileInfo, err error) error {
 		return err
 	}
 	sum := fmt.Sprintf("%x", md5.Sum(data))
-	n.names[sum] = append(n.names[sum], path)
-	if len(n.names[sum]) > 1 {
+	if n.names[sum] == nil {
+		n.names[sum] = &Summary{}
+	}
+	n.names[sum].AddFile(path, info)
+	if n.names[sum].Quantity > 1 {
 		fmt.Print("!")
 	}
 	fmt.Print(".")
@@ -59,8 +87,8 @@ func (n *MDSum) Do(path string, info os.FileInfo, err error) error {
 
 func (n *MDSum) Summary() {
 	for k, v := range n.names {
-		if len(v) > 1 {
-			fmt.Printf("%s: %v %v\n\n", k, len(v), v)
+		if v.Quantity > 1 {
+			fmt.Printf("%s: %v\n", k, v)
 		}
 	}
 }
@@ -68,8 +96,8 @@ func (n *MDSum) Summary() {
 func main() {
 	flag.Parse()
 	dir := flag.Arg(0)
-	op := MDSum{map[string][]string{}}
-	//op := Names{map[string][]string{}}
+	op := MDSum{map[string]*Summary{}}
+	//op := Names{map[string]*Summary{}}
 	err := filepath.Walk(dir, op.Do)
 	if err != nil {
 		panic(err)
